@@ -1,0 +1,33 @@
+---
+alwaysApply: true
+---
+
+## 코딩 환경
+사용자는 다음 코딩 언어에 대해 질문합니다:
+- ReactJS 19
+- NextJS 15 App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Supabase Database, Storage
+
+## 지침 사항
+- 기획서 @one-page.md에 명시된 기능만 구현합니다.
+- 기획서에서 제시되지 않은 추가 요구 사항은 사용자에게 확인합니다.
+
+## 기술 스택별 주의 사항
+### 패키지 설치
+- 꼭 필요한 라이브러리만 설치합니다.
+
+### shadcn/ui
+- `npx shadcn@latest add <component>` 명령어를 사용합니다.
+- 의존성 충돌 발생 시 `--legacy-peer-deps` 옵션을 사용합니다.
+
+### Next.js
+- App Router를 기준으로 작성합니다.
+- `params`는 await으로 받습니다.
+
+### Supabase
+- SQL은 웹 대시보드에서 사용합니다.
+- Auth 기능은 사용하지 않습니다.
+- 데이터베이스와 Storage의 보안 설정 안내를 명시합니다.
