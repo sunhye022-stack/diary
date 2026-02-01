@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useActionState } from "react";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -9,22 +9,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DiaryEditor } from "./DiaryEditor";
 import { EMOTION_OPTIONS, WEATHER_OPTIONS } from "@/lib/diary-constants";
-import { createDiaryAction } from "~app/actions";
+import { updateDiary } from "@/app/actions/diary";
 import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
+import type { Diary } from "@/lib/supabase/types";
+
+interface EditDiaryFormProps {
+  diary: Diary;
+}
 
 const DEFAULT_CONTENT = { type: "doc", content: [{ type: "paragraph" }] };
 
-export function NewDiaryForm() {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState<object>(DEFAULT_CONTENT);
+export function EditDiaryForm({ diary }: EditDiaryFormProps) {
+  const [title, setTitle] = useState(diary.title);
+  const [content, setContent] = useState<object>(
+    (diary.content as object) ?? DEFAULT_CONTENT
+  );
   const [isUploading, setIsUploading] = useState(false);
-  const [emotion, setEmotion] = useState<string | null>(null);
-  const [weather, setWeather] = useState<string | null>(null);
-  const [diaryDate, setDiaryDate] = useState<Date>(new Date());
+  const [emotion, setEmotion] = useState<string | null>(diary.emotion);
+  const [weather, setWeather] = useState<string | null>(diary.weather);
+  const [diaryDate, setDiaryDate] = useState<Date>(
+    new Date(diary.diary_date)
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [state, formAction, isPending] = useActionState(createDiaryAction, {});
+  const [state, formAction, isPending] = useActionState(updateDiary, {});
+
+  useEffect(() => {
+    setTitle(diary.title);
+    setContent((diary.content as object) ?? DEFAULT_CONTENT);
+    setEmotion(diary.emotion);
+    setWeather(diary.weather);
+    setDiaryDate(new Date(diary.diary_date));
+  }, [diary]);
 
   const handleContentChange = useCallback((json: object) => {
     setContent(json);
@@ -32,6 +49,7 @@ export function NewDiaryForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
+      <input type="hidden" name="id" value={diary.id} />
       <input type="hidden" name="content" value={JSON.stringify(content)} />
       <input
         type="hidden"
@@ -73,7 +91,9 @@ export function NewDiaryForm() {
                 key={opt.value}
                 type="button"
                 title={opt.label}
-                onClick={() => setEmotion(emotion === opt.value ? null : opt.value)}
+                onClick={() =>
+                  setEmotion(emotion === opt.value ? null : opt.value)
+                }
                 className={cn(
                   "flex size-10 items-center justify-center rounded-md border text-xl transition-colors",
                   emotion === opt.value
@@ -96,7 +116,9 @@ export function NewDiaryForm() {
                 key={opt.value}
                 type="button"
                 title={opt.label}
-                onClick={() => setWeather(weather === opt.value ? null : opt.value)}
+                onClick={() =>
+                  setWeather(weather === opt.value ? null : opt.value)
+                }
                 className={cn(
                   "flex size-10 items-center justify-center rounded-md border text-xl transition-colors",
                   weather === opt.value
@@ -149,7 +171,7 @@ export function NewDiaryForm() {
           {isPending ? "저장 중..." : isUploading ? "이미지 업로드 중..." : "저장"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <a href="/">취소</a>
+          <a href={`/diary/${diary.id}`}>취소</a>
         </Button>
       </div>
     </form>

@@ -1,10 +1,10 @@
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { SUPABASE_TABLE } from "@/lib/supabase/constants";
-import { EMOTION_OPTIONS, WEATHER_OPTIONS } from "@/lib/diary-constants";
-import type { Diary } from "@/lib/supabase/types";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { getDiary } from "@/app/actions/diary";
+import { DiaryContent } from "@/components/diary/DiaryContent";
 import { Button } from "@/components/ui/button";
+import { EMOTION_OPTIONS, WEATHER_OPTIONS } from "@/lib/diary-constants";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 export default async function DiaryDetailPage({
   params,
@@ -12,112 +12,76 @@ export default async function DiaryDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = createSupabaseServer();
+  const diary = await getDiary(id);
 
-  const { data, error } = await supabase
-    .from(SUPABASE_TABLE)
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (error || !data) {
+  if (!diary) {
     notFound();
   }
 
-  const diary = data as Diary;
+  const emotionEmoji =
+    diary.emotion &&
+    (EMOTION_OPTIONS.find((e) => e.value === diary.emotion)?.emoji ??
+      diary.emotion);
+  const weatherEmoji =
+    diary.weather &&
+    (WEATHER_OPTIONS.find((w) => w.value === diary.weather)?.emoji ??
+      diary.weather);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{diary.title}</h1>
-        <Button variant="outline" asChild>
-          <Link href="/">목록으로</Link>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Button variant="ghost" size="sm" asChild>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            목록으로
+          </Link>
         </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/diary/${id}/edit`} className="inline-flex items-center gap-2">
+              <Pencil className="size-4" />
+              수정
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" disabled title="삭제 기능은 추후 구현 예정">
+            <Trash2 className="size-4" />
+            삭제
+          </Button>
+        </div>
       </div>
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span>{new Date(diary.diary_date).toLocaleDateString("ko-KR")}</span>
-        {diary.emotion && (
+
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold">{diary.title}</h1>
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span>
-            {EMOTION_OPTIONS.find((e) => e.value === diary.emotion)?.emoji ??
-              diary.emotion}
+            {new Date(diary.diary_date).toLocaleDateString("ko-KR", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
           </span>
-        )}
-        {diary.weather && (
           <span>
-            {WEATHER_OPTIONS.find((w) => w.value === diary.weather)?.emoji ??
-              diary.weather}
+            {new Date(diary.created_at).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
-        )}
-      </p>
-      <div
-        className="prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground [&_pre]:bg-muted [&_pre]:rounded-md [&_pre]:p-4"
-        dangerouslySetInnerHTML={{
-          __html: renderTiptapToHtml(diary.content),
-        }}
+          {(emotionEmoji || weatherEmoji) && (
+            <span className="flex gap-1">
+              {emotionEmoji}
+              {weatherEmoji}
+            </span>
+          )}
+        </p>
+      </header>
+
+      <DiaryContent
+        content={diary.content}
+        className="prose prose-sm dark:prose-invert max-w-none [&_ul]:list-disc [&_ol]:list-decimal [&_blockquote]:border-l-4 [&_blockquote]:border-muted-foreground [&_pre]:bg-muted [&_pre]:rounded-md [&_pre]:p-4 [&_img]:block [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
       />
     </div>
   );
-}
-
-type TiptapNode = {
-  type?: string;
-  content?: TiptapNode[];
-  text?: string;
-  marks?: { type: string }[];
-};
-
-function renderTiptapToHtml(content: unknown): string {
-  if (!content || typeof content !== "object") return "";
-  const node = content as TiptapNode;
-  if (!node.type) return "";
-
-  const renderChildren = (nodes: TiptapNode[]) =>
-    nodes.map(renderTiptapToHtml).join("");
-
-  const children = Array.isArray(node.content)
-    ? renderChildren(node.content)
-    : "";
-
-  switch (node.type) {
-    case "doc":
-      return children;
-    case "paragraph":
-      return `<p>${children || "<br>"}</p>`;
-    case "text": {
-      let text = escapeHtml(node.text ?? "");
-      for (const mark of node.marks ?? []) {
-        if (mark.type === "bold") text = `<strong>${text}</strong>`;
-        else if (mark.type === "italic") text = `<em>${text}</em>`;
-        else if (mark.type === "underline") text = `<u>${text}</u>`;
-        else if (mark.type === "strike") text = `<s>${text}</s>`;
-        else if (mark.type === "code") text = `<code>${text}</code>`;
-      }
-      return text;
-    }
-    case "bulletList":
-      return `<ul>${children}</ul>`;
-    case "orderedList":
-      return `<ol>${children}</ol>`;
-    case "listItem":
-      return `<li>${children}</li>`;
-    case "blockquote":
-      return `<blockquote>${children}</blockquote>`;
-    case "codeBlock":
-      return `<pre><code>${children}</code></pre>`;
-    case "hardBreak":
-      return "<br>";
-    default:
-      return children;
-  }
-}
-
-function escapeHtml(text: string): string {
-  const map: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;",
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m] ?? m);
 }
