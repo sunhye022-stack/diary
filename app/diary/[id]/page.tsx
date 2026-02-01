@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDiary } from "@/app/actions/diary";
 import { DiaryContent } from "@/components/diary/DiaryContent";
+import { DiaryDateTime } from "@/components/diary/DiaryDateTime";
 import { DeleteDiaryButton } from "@/components/diary/DeleteDiaryButton";
 import { Button } from "@/components/ui/button";
 import { EMOTION_OPTIONS, WEATHER_OPTIONS } from "@/lib/diary-constants";
@@ -57,19 +58,10 @@ export default async function DiaryDetailPage({
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">{diary.title}</h1>
         <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-          <span>
-            {new Date(diary.diary_date).toLocaleDateString("ko-KR", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </span>
-          <span>
-            {new Date(diary.created_at).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+          <DiaryDateTime
+            diaryDate={diary.diary_date}
+            createdAt={diary.created_at}
+          />
           {(emotionEmoji || weatherEmoji) && (
             <span className="flex gap-1">
               {emotionEmoji}
